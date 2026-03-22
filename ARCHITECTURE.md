@@ -2,6 +2,7 @@
 
 > **Scope:** Deep internal reference for contributors and engineers modifying the codebase.
 > For build commands, project setup, and coding conventions see **[CLAUDE.md](CLAUDE.md)**.
+> For public API reference and data structures see **[INTERFACE.md](INTERFACE.md)**.
 
 ---
 

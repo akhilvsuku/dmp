@@ -9,7 +9,7 @@ C++ port of Google's [diff-match-patch](https://github.com/google/diff-match-pat
 - **Patch** — generate and apply unified-diff patches with fuzzy fallback
 
 The entry point is the `diff_match_patch` class. `Diff` and `Patch` are plain value types used as data carriers.
-License: Apache 2.0. Originally ported to Qt/C++ by Mike Slemmer.
+License: Apache 2.0.
 
 ---
 
@@ -18,34 +18,33 @@ License: Apache 2.0. Originally ported to Qt/C++ by Mike Slemmer.
 | Component | Details |
 |-----------|---------|
 | Language | C++17 |
-| Build system | qmake (`.pro` file) |
-| UI toolkit / core lib | **Qt Core only** (no GUI) — Qt 4.3 through 6.9.x |
-| Compiler (tested) | MinGW GCC 13.1.0 (x86_64), cross-platform via Qt |
-| String type | `QString` (UTF-8 / Unicode) |
-| Containers | `QList`, `QMap`, `QStringList`, `QVector`, `QPair`, `QVariant` |
-| Regex | `QRegExp` |
-| Time | `QTime` |
-| URL encoding | `QUrl::toPercentEncoding()` |
-| Test framework | Custom hand-rolled harness (no GoogleTest / QtTest) |
-| External dependencies | **None** beyond Qt Core |
+| Build system | GNU Make (`Makefile`) |
+| String type | `std::string` |
+| Containers | `std::vector`, `std::map`, `std::stack` |
+| Regex | `std::regex` |
+| Time | `std::chrono` / `clock_t` |
+| Test framework | Custom hand-rolled harness (no GoogleTest) |
+| External dependencies | **None** — C++17 standard library only |
 
 ---
 
 ## Folder Structure
 
 ```
-cpp/
+dmp/
 ├── diff_match_patch.h            Public API — class/method declarations, Diff, Patch value types
 ├── diff_match_patch.cpp          All algorithm implementations (~2 100 lines)
 ├── diff_match_patch_test.h       Test harness class declaration (friend of diff_match_patch)
-├── diff_match_patch_test.cpp     27 test methods covering all three modules (~1 200 lines)
-├── diff_match_patch.pro          qmake project file — the only build configuration
-├── diff_match_patch.pro.user     Qt Creator per-user IDE settings (generated, not version-controlled)
-└── build/                        qmake / Qt Creator build artefacts (generated, not version-controlled)
-    └── Desktop_Qt_6_9_1_MinGW_64_bit-Debug/
+├── diff_match_patch_test.cpp     Test methods covering all three modules
+├── Makefile                      Build configuration — test binary, static lib, shared lib
+├── consolefilecompare/           Example console app — compare two text files
+│   ├── main.cpp
+│   └── Makefile
+└── build/                        Build artefacts (generated, not version-controlled)
+    └── consolefilecompare/
 ```
 
-There is no `src/`, `include/`, or `test/` split — all source lives at the root level. Do not reorganise this structure without updating the `.pro` file.
+There is no `src/`, `include/`, or `test/` split — all source lives at the root level.
 
 ---
 
@@ -54,14 +53,14 @@ There is no `src/`, `include/`, or `test/` split — all source lives at the roo
 ### Build
 
 ```bash
-# Generate Makefile from qmake project
-qmake diff_match_patch.pro
-
-# Compile (debug + release targets defined in .pro)
+# Build and run tests (debug)
 make
 
-# Release build
-make release
+# Build static library: libdiff_match_patch.a
+make static
+
+# Build shared library: libdiff_match_patch.so
+make dynamic
 
 # Clean
 make clean
@@ -70,17 +69,22 @@ make clean
 ### Run tests
 
 ```bash
-# After building, the output binary IS the test runner (main() is in diff_match_patch_test.cpp)
+# The default 'make' target builds and runs tests automatically.
+# To run the test binary directly after building:
 ./diff_match_patch
-# On Windows (MinGW):
-./release/diff_match_patch.exe
 ```
 
-Test output is written via `qDebug()`. A passing run prints "OK" for each assertion; failures print the failing test name and values.
+### Build example apps
 
-### Qt Creator
+```bash
+# consolefilecompare — compare two text files
+cd consolefilecompare
+make
+# Binary: ../build/consolefilecompare/consolefilecompare
 
-Open `diff_match_patch.pro` in Qt Creator. Build/run/debug via IDE as usual.
+# Usage:
+../build/consolefilecompare/consolefilecompare file1.txt file2.txt
+```
 
 ---
 
@@ -98,22 +102,21 @@ Open `diff_match_patch.pro` in Qt Creator. Build/run/debug via IDE as usual.
 
 ### Formatting
 
-- **Indentation:** 4 spaces (no tabs) — enforced in Qt Creator project settings
+- **Indentation:** 4 spaces (no tabs)
 - **Encoding:** UTF-8
 - **Line endings:** Unix (`\n`)
 - Comments follow JavaDoc style for public API; inline comments explain non-obvious algorithm steps
 
-### Qt Usage
+### String and Container Usage
 
-- Always use `QString` — never `std::string` for text that passes through the API
-- Prefer Qt containers (`QList`, `QMap`) over STL equivalents for consistency with Qt types
-- Use `Q_UNUSED(x)` for intentionally unused parameters
-- Use `foreach` (Qt macro) rather than range-for where existing code uses it
+- Always use `std::string` for text that passes through the API
+- Prefer STL containers (`std::vector`, `std::map`) throughout
+- Use `(void)x;` or leave parameters unnamed for intentionally unused parameters
 
 ### Error Handling
 
-- Throw `QString` exceptions for invalid inputs (e.g. malformed delta, null inputs)
-- No error codes; callers must catch `QString`
+- Throw `std::string` exceptions for invalid inputs (e.g. malformed delta, null inputs)
+- No error codes; callers must catch `std::string`
 
 ### Visibility
 
@@ -128,19 +131,19 @@ Open `diff_match_patch.pro` in Qt Creator. Build/run/debug via IDE as usual.
 
 ### Single header + single implementation file
 
-The entire library is `diff_match_patch.h` / `diff_match_patch.cpp`. This is deliberate — the original Google port keeps the library self-contained and easy to embed. Do not split into multiple translation units.
+The entire library is `diff_match_patch.h` / `diff_match_patch.cpp`. This is deliberate — the library is self-contained and easy to embed. Do not split into multiple translation units.
 
-### Qt as the only dependency
+### C++ standard library as the only dependency
 
-All string and container needs are served by Qt Core. There is no Boost, no ICU, no STL strings at the API boundary. This keeps the library usable in any Qt project without additional setup.
+All string and container needs are served by the C++17 standard library. There is no Boost, no ICU, no third-party dependencies. The library can be embedded in any C++17 project without additional setup.
 
 ### Custom test harness
 
-Tests use a hand-rolled `assertEquals`/`assertTrue`/`assertFalse` harness rather than QtTest or GoogleTest. The test executable is produced by the same `.pro` file as the library (there is no separate test project). `main()` lives in `diff_match_patch_test.cpp`.
+Tests use a hand-rolled `assertEquals`/`assertTrue`/`assertFalse` harness rather than GoogleTest. The test executable is produced by the root Makefile. `main()` lives in `diff_match_patch_test.cpp`.
 
 ### Value semantics for Diff and Patch
 
-`Diff` and `Patch` are plain structs with value semantics. They are stored by value in `QList<Diff>` and `QList<Patch>`. Do not convert them to heap-allocated pointers or shared pointers.
+`Diff` and `Patch` are plain structs with value semantics. They are stored by value in `std::vector<Diff>` and `std::vector<Patch>`. Do not convert them to heap-allocated pointers or shared pointers.
 
 ### Myers O(ND) diff with multiple cleanup passes
 
@@ -176,8 +179,8 @@ When `checklines=true` (default), `diff_main` first diffs at line granularity (e
 
 7. **`friend class diff_match_patch_test`** — removing this breaks the test suite's access to protected/private methods.
 
-8. **Qt as the sole dependency** — do not introduce non-Qt third-party libraries. The library is intentionally dependency-free beyond Qt.
+8. **No third-party dependencies** — the library depends only on the C++17 standard library. Do not introduce external libraries.
 
-9. **`diff_match_patch.pro` `HEADERS`/`SOURCES` lists** — if files are added/removed, update these lists or the build will silently miss files.
+9. **`Makefile` source lists** — if files are added/removed, update the Makefile or the build will silently miss files.
 
-10. **The `build/` and `.pro.user` directories** — these are generated artefacts. Do not check them in or rely on their contents in code.
+10. **The `build/` directory** — generated artefacts. Do not check them in or rely on their contents in code.
